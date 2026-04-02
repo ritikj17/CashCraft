@@ -6,17 +6,66 @@
   <title>Send Payment · PayNearby</title>
   <link rel="stylesheet" href="assets/style.css"/>
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+
+  <style>
+    .wallet-box {
+      border: 1px solid rgba(108,99,255,0.3);
+      padding: 14px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      background: rgba(255,255,255,0.02);
+    }
+    .wallet-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 16px;
+      margin-bottom: 10px;
+    }
+    .wallet-actions {
+      display: flex;
+      gap: 10px;
+    }
+    .wallet-actions input {
+      flex: 1;
+      padding: 8px;
+      border-radius: 8px;
+      border: 1px solid #444;
+    }
+    .wallet-actions button {
+      background: #6c63ff;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 8px;
+      color: white;
+      cursor: pointer;
+    }
+  </style>
 </head>
+
 <body class="send-page">
   <div class="noise-overlay"></div>
   <div class="page-container">
+
     <div class="page-header">
       <a href="index.html" class="back-btn">← Back</a>
       <h2>Send via QR + Bluetooth</h2>
     </div>
 
-    <!-- STEP 1: Enter Details -->
+    <!-- STEP 1 -->
     <div id="step1" class="step-card active">
+
+      <!-- 💰 WALLET -->
+      <div class="wallet-box">
+        <div class="wallet-header">
+          <span>💰 Wallet Balance</span>
+          <strong>₹<span id="walletBalance">0</span></strong>
+        </div>
+        <div class="wallet-actions">
+          <input type="number" id="addAmount" placeholder="Add money (₹)" />
+          <button onclick="addMoney()">Add</button>
+        </div>
+      </div>
+
       <div class="step-label">Step 1 of 3 · Your Details</div>
       <h3>Enter Payment Info</h3>
 
@@ -24,10 +73,12 @@
         <label>Your Name</label>
         <input type="text" id="senderName" placeholder="e.g. Rahul Sharma"/>
       </div>
+
       <div class="form-group">
         <label>Your UPI ID</label>
         <input type="text" id="senderUpi" placeholder="e.g. rahul@upi"/>
       </div>
+
       <div class="form-group">
         <label>Amount (₹)</label>
         <input type="number" id="amount" placeholder="e.g. 250" min="1"/>
@@ -39,255 +90,135 @@
       </button>
     </div>
 
-    <!-- STEP 2: Show QR -->
+    <!-- STEP 2 -->
     <div id="step2" class="step-card">
-      <div class="step-label">Step 2 of 3 · Secure QR Generated</div>
-      <h3>Show This QR to Receiver</h3>
-
-      <div class="qr-wrapper">
-        <div class="qr-frame">
-          <img id="qrCode" src="" alt="QR Code"/>
-          <div class="qr-corner tl"></div>
-          <div class="qr-corner tr"></div>
-          <div class="qr-corner bl"></div>
-          <div class="qr-corner br"></div>
-        </div>
-        <div class="qr-badge">🔐 Encrypted & Unique</div>
-      </div>
-
-      <!-- Countdown Timer -->
-      <div class="timer-box">
-        <div class="timer-label">QR Expires In</div>
-        <div class="timer-display" id="countdown">05:00</div>
-        <div class="timer-bar-wrap">
-          <div class="timer-bar" id="timerBar"></div>
-        </div>
-      </div>
-
-      <div class="txn-info-box">
-        <div class="info-row"><span>Transaction ID</span><strong id="displayTxnId">—</strong></div>
-        <div class="info-row"><span>Amount</span><strong id="displayAmount">—</strong></div>
-        <div class="info-row"><span>Security</span><strong style="color:var(--success)">✓ Hash Verified</strong></div>
-      </div>
-
-      <div class="security-note">
-        🛡️ This QR is unique, encrypted, and expires in 5 minutes. Each payment gets a different QR.
-      </div>
-
-      <div class="bt-pulse">
-        <div class="pulse-ring"></div>
-        <div class="pulse-ring delay1"></div>
-        <div class="pulse-core">BT</div>
-      </div>
-      <p class="pulse-label">Also broadcasting via Bluetooth as backup...</p>
+      <h3>Show QR</h3>
+      <img id="qrCode"/>
     </div>
 
-    <!-- STEP 3: Receiver Connected -->
+    <!-- STEP 3 -->
     <div id="step3" class="step-card">
-      <div class="step-label">Step 3 of 3 · Confirm</div>
-      <h3>Receiver Verified ✓</h3>
+      <h3>Confirm</h3>
+      <p id="receiverName"></p>
+      <p id="receiverUpi"></p>
+      <p id="confirmAmount"></p>
 
-      <div class="verified-badge">
-        <span>🔐 QR Scanned & Verified</span>
-      </div>
-
-      <div class="confirm-box">
-        <div class="confirm-row">
-          <span>Sending to</span>
-          <strong id="receiverName">—</strong>
-        </div>
-        <div class="confirm-row">
-          <span>Receiver UPI</span>
-          <strong id="receiverUpi">—</strong>
-        </div>
-        <div class="confirm-row amount-row">
-          <span>Amount</span>
-          <strong id="confirmAmount">—</strong>
-        </div>
-      </div>
-
-      <!-- AI Fraud Check Result -->
-      <div id="fraudResult" class="fraud-box" style="display:none"></div>
-
-      <button class="btn-primary btn-confirm" id="confirmBtn" onclick="confirmPayment()">
-        <span>Confirm & Pay</span>
-        <span class="btn-icon">✓</span>
-      </button>
+      <button onclick="confirmPayment()">Confirm & Pay</button>
     </div>
 
-    <!-- STEP 4: Result -->
+    <!-- STEP 4 -->
     <div id="step4" class="step-card">
-      <div id="resultIcon" class="result-icon">⏳</div>
       <h3 id="resultTitle">Processing...</h3>
-      <p id="resultMsg">Please wait while payment completes.</p>
-      <div id="resultDetails" class="txn-info-box" style="display:none"></div>
-      <a href="index.html" class="btn-secondary" id="doneBtn" style="display:none">Back to Home</a>
+      <p id="resultMsg"></p>
     </div>
+
   </div>
 
-  <script src="/socket.io/socket.io.js"></script>
-  <script src="assets/app.js"></script>
-  <script>
-    const socket = io();
-    let currentTxnId = null;
-    let countdownInterval = null;
-    let expiryTime = null;
+<script src="/socket.io/socket.io.js"></script>
 
-    function showStep(n) {
-      document.querySelectorAll(".step-card").forEach(c => c.classList.remove("active"));
-      document.getElementById("step" + n).classList.add("active");
-    }
+<script>
+const socket = io();
+const USER_ID = "user123";
 
-    async function createPayment() {
-      const name = document.getElementById("senderName").value.trim();
-      const upiId = document.getElementById("senderUpi").value.trim();
-      const amount = document.getElementById("amount").value;
-      if (!name || !upiId || !amount) return alert("Please fill all fields.");
+let currentTxnId = null;
 
-      const res = await fetch("/api/payment/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ upiId, amount, name })
-      });
-      const data = await res.json();
-      currentTxnId = data.txnId;
-      expiryTime = data.expiresAt;
-
-      document.getElementById("qrCode").src = data.qrDataUrl;
-      document.getElementById("displayTxnId").textContent = data.txnId;
-      document.getElementById("displayAmount").textContent = "₹" + amount;
-
-      // Start countdown timer
-      startCountdown(data.expiresAt);
-
-      // Also broadcast via Bluetooth as backup
-      socket.emit("bt:advertise", { txnId: data.txnId, upiId, amount, name });
-      showStep(2);
-    }
-
-    function startCountdown(expiresAt) {
-      const totalTime = 5 * 60 * 1000;
-      clearInterval(countdownInterval);
-
-      countdownInterval = setInterval(() => {
-        const remaining = expiresAt - Date.now();
-        if (remaining <= 0) {
-          clearInterval(countdownInterval);
-          document.getElementById("countdown").textContent = "EXPIRED";
-          document.getElementById("countdown").style.color = "var(--error)";
-          document.getElementById("timerBar").style.width = "0%";
-          showToast("QR Code expired! Generate a new one.", "error");
-          setTimeout(() => showStep(1), 2000);
-          return;
-        }
-        const mins = Math.floor(remaining / 60000);
-        const secs = Math.floor((remaining % 60000) / 1000);
-        document.getElementById("countdown").textContent =
-          `0${mins}:${secs.toString().padStart(2, "0")}`;
-
-        const pct = (remaining / totalTime) * 100;
-        const bar = document.getElementById("timerBar");
-        bar.style.width = pct + "%";
-        bar.style.background = pct > 50 ? "var(--success)" : pct > 20 ? "#ffaa00" : "var(--error)";
-      }, 1000);
-    }
-
-    socket.on("bt:receiver:connected", async (data) => {
-      clearInterval(countdownInterval);
-      document.getElementById("receiverName").textContent = data.receiverName;
-      document.getElementById("receiverUpi").textContent = data.receiverUpi;
-      document.getElementById("confirmAmount").textContent = "₹" + document.getElementById("amount").value;
-
-      // Run AI fraud check
-      await runFraudCheck({
-        amount: document.getElementById("amount").value,
-        receiverUpi: data.receiverUpi,
-        receiverName: data.receiverName,
-        senderUpi: document.getElementById("senderUpi").value,
-        txnId: currentTxnId
-      });
-
-      showStep(3);
-    });
-
-    async function runFraudCheck(details) {
-      const box = document.getElementById("fraudResult");
-      box.style.display = "block";
-      box.innerHTML = `<div class="fraud-checking">🤖 AI is checking for fraud...</div>`;
-
-      try {
-        const res = await fetch("/api/ai/fraud-check", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(details)
-        });
-        const result = await res.json();
-
-        const colors = { safe: "var(--success)", warning: "#ffaa00", danger: "var(--error)" };
-        const icons = { safe: "✅", warning: "⚠️", danger: "🔴" };
-
-        box.innerHTML = `
-          <div class="fraud-result ${result.riskLevel}">
-            <div class="fraud-icon">${icons[result.riskLevel]}</div>
-            <div>
-              <strong>AI Fraud Check: ${result.riskLevel.toUpperCase()}</strong>
-              <p>${result.reason}</p>
-              <span class="risk-score" style="color:${colors[result.riskLevel]}">
-                Risk Score: ${result.score}/100
-              </span>
-            </div>
-          </div>
-        `;
-
-        if (result.riskLevel === "danger") {
-          document.getElementById("confirmBtn").disabled = true;
-          document.getElementById("confirmBtn").textContent = "🔴 Blocked by AI";
-          document.getElementById("confirmBtn").style.background = "var(--error)";
-        }
-      } catch (e) {
-        box.innerHTML = `<div class="fraud-result safe">✅ AI check skipped — proceeding normally</div>`;
-      }
-    }
-
-    function confirmPayment() {
-  // Show processing screen first
-  showStep(4);
-
-  // Start payment via Bluetooth (wallet will be checked in backend)
-  socket.emit("bt:pay:initiate", { txnId: currentTxnId });
+// 💰 LOAD WALLET
+async function loadWallet(){
+  try{
+    const res = await fetch(`/api/wallet/${USER_ID}`);
+    const data = await res.json();
+    document.getElementById("walletBalance").innerText = data.balance || 0;
+  }catch{
+    console.log("wallet error");
+  }
 }
 
-    socket.on("bt:pay:result", (data) => {
-  const success = data.status === "success";
+// ➕ ADD MONEY
+async function addMoney(){
+  const amount = document.getElementById("addAmount").value;
 
-  document.getElementById("resultIcon").textContent = success ? "✅" : "❌";
-  document.getElementById("resultTitle").textContent =
-    success ? "Payment Sent!" : "Payment Failed";
+  if(!amount) return alert("Enter amount");
 
-  // 🔥 HANDLE WALLET ERRORS
-  if (!success && data.error) {
-    document.getElementById("resultMsg").textContent = "❌ " + data.error;
-  } else {
-    document.getElementById("resultMsg").textContent = success
-      ? `₹${data.txn.amount} sent securely via QR + Bluetooth.`
-      : "Transaction could not be completed. Try again.";
+  const res = await fetch("/api/wallet/add-money",{
+    method:"POST",
+    headers:{ "Content-Type":"application/json"},
+    body: JSON.stringify({
+      userId: USER_ID,
+      amount: Number(amount)
+    })
+  });
+
+  const data = await res.json();
+
+  if(data.error){
+    alert(data.error);
+    return;
   }
 
-  if (data.txn) {
-    const d = document.getElementById("resultDetails");
-    d.style.display = "block";
-    d.innerHTML = `
-      <div class="info-row"><span>Txn ID</span><strong>${data.txn.txnId}</strong></div>
-      <div class="info-row"><span>To</span><strong>${data.txn.receiverName}</strong></div>
-      <div class="info-row"><span>Security</span><strong style="color:var(--success)">QR + BT Verified ✓</strong></div>
-      <div class="info-row"><span>Time</span><strong>${new Date(data.txn.completedAt).toLocaleTimeString()}</strong></div>
-    `;
-  }
+  alert("Money added!");
+  document.getElementById("addAmount").value="";
+  loadWallet();
+}
 
-  document.getElementById("doneBtn").style.display = "block";
+// CREATE PAYMENT
+async function createPayment(){
+  const name = senderName.value;
+  const upiId = senderUpi.value;
+  const amount = amountInput.value;
+
+  const res = await fetch("/api/payment/create",{
+    method:"POST",
+    headers:{ "Content-Type":"application/json"},
+    body: JSON.stringify({ name, upiId, amount })
+  });
+
+  const data = await res.json();
+  currentTxnId = data.txnId;
+
+  document.getElementById("qrCode").src = data.qrDataUrl;
+
+  showStep(2);
+
+  socket.emit("bt:advertise", data);
+}
+
+// STEP SWITCH
+function showStep(n){
+  document.querySelectorAll(".step-card").forEach(c=>c.style.display="none");
+  document.getElementById("step"+n).style.display="block";
+}
+
+// RECEIVER CONNECT
+socket.on("bt:receiver:connected",(data)=>{
+  receiverName.innerText = data.receiverName;
+  receiverUpi.innerText = data.receiverUpi;
+  confirmAmount.innerText = "₹"+amount.value;
+
+  showStep(3);
 });
 
-    socket.on("bt:error", (e) => alert("⚠️ " + e.message));
-  </script>
+// CONFIRM PAYMENT
+function confirmPayment(){
+  showStep(4);
+  socket.emit("bt:pay:initiate",{ txnId: currentTxnId });
+}
+
+// RESULT
+socket.on("bt:pay:result",(data)=>{
+  if(data.status==="success"){
+    resultTitle.innerText="Payment Success";
+    resultMsg.innerText="₹"+data.txn.amount+" sent";
+  }else{
+    resultTitle.innerText="Failed";
+    resultMsg.innerText=data.error || "Try again";
+  }
+
+  loadWallet(); // 🔥 update balance
+});
+
+// INIT
+loadWallet();
+</script>
+
 </body>
 </html>
