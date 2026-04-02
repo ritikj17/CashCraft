@@ -1,0 +1,25 @@
+<h2>Login</h2>
+
+<input id="name" placeholder="Your Name"/>
+<input id="upi" placeholder="UPI ID"/>
+
+<button onclick="login()">Login</button>
+
+<script>
+async function login(){
+  const name = document.getElementById("name").value;
+  const upiId = document.getElementById("upi").value;
+
+  const res = await fetch("/api/user/create",{
+    method:"POST",
+    headers:{ "Content-Type":"application/json"},
+    body: JSON.stringify({ name, upiId })
+  });
+
+  const user = await res.json();
+
+  localStorage.setItem("userId", user._id);
+
+  window.location.href = "send.html";
+}
+</script>

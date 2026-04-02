@@ -12,6 +12,12 @@ const app = express();
 const server = http.createServer(app);
 const walletRoutes = require("./wallet");
 
+require("dotenv").config();
+const connectDB = require("./config/db");
+connectDB();
+
+const userRoutes = require("./routes/user");
+app.use("/api/user", userRoutes);
 
 const io = new Server(server, {
   cors: { origin: "*" }

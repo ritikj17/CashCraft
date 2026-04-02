@@ -118,7 +118,14 @@
 
 <script>
 const socket = io();
-const USER_ID = "user123";
+
+// ✅ REAL USER (from login)
+const USER_ID = localStorage.getItem("userId");
+
+if(!USER_ID){
+  alert("Please login first");
+  window.location.href = "login.html";
+}
 
 let currentTxnId = null;
 
@@ -127,6 +134,12 @@ async function loadWallet(){
   try{
     const res = await fetch(`/api/wallet/${USER_ID}`);
     const data = await res.json();
+
+    if(data.error){
+      console.log(data.error);
+      return;
+    }
+
     document.getElementById("walletBalance").innerText = data.balance || 0;
   }catch{
     console.log("wallet error");
@@ -162,9 +175,13 @@ async function addMoney(){
 
 // CREATE PAYMENT
 async function createPayment(){
-  const name = senderName.value;
-  const upiId = senderUpi.value;
-  const amount = amountInput.value;
+  const name = document.getElementById("senderName").value;
+  const upiId = document.getElementById("senderUpi").value;
+  const amount = document.getElementById("amount").value;
+
+  if(!name || !upiId || !amount){
+    return alert("Fill all details");
+  }
 
   const res = await fetch("/api/payment/create",{
     method:"POST",
@@ -173,6 +190,7 @@ async function createPayment(){
   });
 
   const data = await res.json();
+
   currentTxnId = data.txnId;
 
   document.getElementById("qrCode").src = data.qrDataUrl;
@@ -190,9 +208,9 @@ function showStep(n){
 
 // RECEIVER CONNECT
 socket.on("bt:receiver:connected",(data)=>{
-  receiverName.innerText = data.receiverName;
-  receiverUpi.innerText = data.receiverUpi;
-  confirmAmount.innerText = "₹"+amount.value;
+  document.getElementById("receiverName").innerText = data.receiverName;
+  document.getElementById("receiverUpi").innerText = data.receiverUpi;
+  document.getElementById("confirmAmount").innerText = "₹"+document.getElementById("amount").value;
 
   showStep(3);
 });
@@ -200,17 +218,18 @@ socket.on("bt:receiver:connected",(data)=>{
 // CONFIRM PAYMENT
 function confirmPayment(){
   showStep(4);
+
   socket.emit("bt:pay:initiate",{ txnId: currentTxnId });
 }
 
 // RESULT
 socket.on("bt:pay:result",(data)=>{
   if(data.status==="success"){
-    resultTitle.innerText="Payment Success";
-    resultMsg.innerText="₹"+data.txn.amount+" sent";
+    document.getElementById("resultTitle").innerText="Payment Success";
+    document.getElementById("resultMsg").innerText="₹"+data.txn.amount+" sent";
   }else{
-    resultTitle.innerText="Failed";
-    resultMsg.innerText=data.error || "Try again";
+    document.getElementById("resultTitle").innerText="Failed";
+    document.getElementById("resultMsg").innerText=data.error || "Try again";
   }
 
   loadWallet(); // 🔥 update balance
