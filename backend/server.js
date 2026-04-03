@@ -4,6 +4,12 @@ const { Server } = require("socket.io");
 const cors = require("cors");
 const path = require("path");
 
+app.use(express.static(path.join(__dirname, "../frontend")));
+
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "../frontend/login.html"));
+});
+
 const paymentRoutes = require("./routes/payment");
 const statusRoutes = require("./routes/status");
 const { initBluetooth } = require("./bluetooth");
