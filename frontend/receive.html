@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Receive Payment · PayNearby</title>
+  <title>Receive Payment | PayNearBy</title>
   <link rel="stylesheet" href="assets/style.css"/>
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
 </head>
@@ -11,348 +11,288 @@
   <div class="noise-overlay"></div>
   <div class="page-container">
     <div class="page-header">
-      <a href="index.html" class="back-btn">← Back</a>
-      <h2>Receive via QR + Bluetooth</h2>
+      <a href="index.html" class="back-btn" style="text-decoration:none; display:flex; align-items:center; gap:0.6rem;">
+        <strong style="font-family:'Syne', sans-serif; font-size:1.15rem;">PayNearBy</strong>
+      </a>
+      <h2>Receive Money</h2>
+      <a href="index.html" class="ghost-btn" style="text-decoration:none; display:inline-flex; align-items:center; justify-content:center;">Back</a>
     </div>
 
-    <!-- STEP 1: Your Info -->
     <div id="step1" class="step-card active">
-      <div class="step-label">Step 1 of 3 · Your Details</div>
-      <h3>Enter Your Info</h3>
+      <div class="step-label">Step 1 of 3 | Create Request</div>
+      <h3>Ask Sender to Pay You</h3>
+      <p class="warning-note" style="margin-bottom:1rem;">Create a request for the receiver profile you want to use. If the same name and UPI already exist, that receiver's records will be restored.</p>
       <div class="form-group">
-        <label>Your Name</label>
-        <input type="text" id="receiverName" placeholder="e.g. Priya Singh" autocomplete="off"/>
+        <label>Receiver Name</label>
+        <input type="text" id="receiverNameInput" placeholder="e.g. Priya Singh" autocomplete="off"/>
       </div>
       <div class="form-group">
-        <label>Your UPI ID</label>
-        <input type="text" id="receiverUpi" placeholder="e.g. priya@upi" autocomplete="off"/>
+        <label>Receiver UPI ID</label>
+        <input type="text" id="receiverUpiInput" placeholder="e.g. priya@upi" autocomplete="off"/>
       </div>
-      <button class="btn-primary" type="button" onclick="showScanOptions()">
-        <span>Continue</span>
-        <span class="btn-icon">→</span>
-      </button>
+      <div class="form-group">
+        <label>Amount to receive</label>
+        <input type="number" id="requestAmount" min="1" placeholder="e.g. 500" autocomplete="off"/>
+      </div>
+      <button class="btn-primary" type="button" onclick="createRequest()">Generate QR and Transaction ID</button>
     </div>
 
-    <!-- STEP 2: Scan Options -->
     <div id="step2" class="step-card">
-      <div class="step-label">Step 2 of 3 · Scan Payment</div>
-      <h3>Choose Scan Method</h3>
-
-      <div class="scan-options">
-        <!-- QR Scanner -->
-        <div class="scan-option-card" onclick="startQRScan()">
-          <div class="scan-option-icon">📷</div>
-          <div>
-            <h4>Scan QR Code</h4>
-            <p>Point camera at sender's QR code — fastest & most secure</p>
-          </div>
-          <span class="recommended-badge">Recommended</span>
-        </div>
-
-        <!-- Manual Input -->
-        <div class="scan-option-card" onclick="showManualInput()">
-          <div class="scan-option-icon">⌨️</div>
-          <div>
-            <h4>Enter Transaction ID</h4>
-            <p>Type the TXN ID shown on sender's screen</p>
-          </div>
-        </div>
-
-        <!-- Bluetooth Scan -->
-        <div class="scan-option-card" onclick="startBTScan()">
-          <div class="scan-option-icon">📡</div>
-          <div>
-            <h4>Scan via Bluetooth</h4>
-            <p>Auto-detect nearby payment broadcasts</p>
-          </div>
-        </div>
+      <div class="step-label">Step 2 of 3 | Share Request</div>
+      <h3>Show This to the Sender</h3>
+      <div class="qr-display-card">
+        <img id="generatedQr" alt="Payment request QR" style="width: 260px; max-width: 100%; border-radius: 18px; display:none; margin: 0 auto 1rem;"/>
+        <div class="verified-badge"><span>One-time QR request</span></div>
+        <p style="text-align:center; color:var(--text2); margin-top:0.85rem;">QR expires in</p>
+        <div id="qrCountdown" style="text-align:center; font-size:2rem; font-weight:800; color:var(--accent);">5:00</div>
       </div>
 
-      <!-- QR Camera Scanner — HIDDEN by default -->
-      <div id="qrScanner" style="display:none; margin-top:1rem;">
-        <video id="qrVideo" style="width:100%; border-radius:12px; border:2px solid var(--accent);"></video>
-        <p style="font-size:0.78rem; color:var(--text2); text-align:center; margin-top:0.5rem;">
-          Point camera at the QR code
-        </p>
-        <button class="btn-secondary" type="button" onclick="stopQRScan()">Cancel Scan</button>
-      </div>
-
-      <!-- Manual TXN ID Input — HIDDEN by default -->
-      <div id="manualInput" style="display:none; margin-top:1rem;">
-        <div class="form-group">
-          <label>Enter Transaction ID</label>
-          <input type="text" id="manualTxnId" placeholder="e.g. TXN-A3F9B2" style="text-transform:uppercase;" autocomplete="off"/>
-        </div>
-        <button class="btn-primary" type="button" onclick="verifyManualTxn()">Verify & Continue</button>
-      </div>
-
-      <!-- BT Scan Results — HIDDEN by default -->
-      <div id="btResults" style="display:none; margin-top:1rem;">
-        <div id="scanResults" class="scan-list">
-          <div class="scanning-anim">
-            <div class="scan-ring"></div>
-            <p>Scanning via Bluetooth...</p>
-          </div>
-        </div>
-        <button class="btn-secondary" type="button" onclick="startBTScan()">🔄 Re-scan</button>
-      </div>
-    </div>
-
-    <!-- STEP 3: Verify & Confirm -->
-    <div id="step3" class="step-card">
-      <div class="step-label">Step 3 of 3 · Verify & Pay</div>
-      <h3>Payment Verified ✓</h3>
-
-      <div class="verified-badge" id="verifyBadge">
-        <span>🔐 QR Verified — Authentic Payment</span>
-      </div>
-
-      <div class="confirm-box">
-        <div class="confirm-row">
-          <span>From</span><strong id="fromName">—</strong>
-        </div>
-        <div class="confirm-row">
-          <span>Their UPI</span><strong id="fromUpi">—</strong>
-        </div>
-        <div class="confirm-row amount-row">
-          <span>Amount</span><strong id="payAmount">—</strong>
-        </div>
-        <div class="confirm-row">
-          <span>Transaction ID</span><strong id="displayVerifiedTxnId">—</strong>
-        </div>
-        <div class="confirm-row">
-          <span>QR Valid For</span><strong id="timeLeft" style="color:var(--success)">—</strong>
-        </div>
+      <div class="confirm-box" style="margin-top:1rem;">
+        <div class="confirm-row"><span>Receiver</span><strong id="shareReceiverName">-</strong></div>
+        <div class="confirm-row"><span>Receiver UPI</span><strong id="shareReceiverUpi">-</strong></div>
+        <div class="confirm-row amount-row"><span>Amount</span><strong id="shareAmount">-</strong></div>
+        <div class="confirm-row"><span>Transaction ID</span><strong id="shareTxnId">-</strong></div>
+        <div class="confirm-row"><span>Status</span><strong id="requestStatus">Waiting for sender</strong></div>
       </div>
 
       <div class="security-checks">
-        <div class="check-item" id="check1">✓ QR Hash Verified</div>
-        <div class="check-item" id="check2">✓ Not Expired</div>
-        <div class="check-item" id="check3">✓ Amount Confirmed</div>
+        <div class="check-item">QR valid for 5 minutes</div>
+        <div class="check-item">Becomes invalid after one scan</div>
+        <div class="check-item">Bluetooth visible nearby</div>
       </div>
 
-      <p class="warning-note">⚠️ Verify sender's face matches the name shown above.</p>
-      <button class="btn-primary btn-confirm" type="button" onclick="acceptPayment()">
-        <span>Accept & Pay</span>
-        <span class="btn-icon">✓</span>
-      </button>
-      <button class="btn-secondary" type="button" onclick="showStep(2)">← Scan Again</button>
+      <p class="warning-note">The sender can now pay by scanning your QR, entering your transaction ID, or selecting you from nearby Bluetooth requests.</p>
+      <button class="btn-secondary" type="button" onclick="showStep(1)">Create Another Request</button>
     </div>
 
-    <!-- STEP 4: Result -->
-    <div id="step4" class="step-card">
-      <div id="resultIcon" class="result-icon">⏳</div>
-      <h3 id="resultTitle">Processing...</h3>
-      <p id="resultMsg">Completing payment securely.</p>
-      <div id="resultDetails" class="txn-info-box" style="display:none"></div>
-      <a href="index.html" class="btn-secondary" id="doneBtn" style="display:none">Back to Home</a>
+    <div id="step3" class="step-card">
+      <div id="resultIcon" class="result-icon">OK</div>
+      <h3 id="resultTitle">Payment Received</h3>
+      <p id="resultMsg">Your request has been paid successfully.</p>
+      <div id="resultDetails" class="txn-info-box"></div>
+      <a href="index.html" class="btn-secondary">Back to Home</a>
     </div>
-
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
   <script src="assets/app.js"></script>
   <script>
+    if (!requireLogin()) {
+      throw new Error("Authentication required");
+    }
+
     const socket = io();
-    let selectedTxn = null;
-    let qrStream = null;
-    let qrScanMode = false;
+    const USER_ID = getCurrentUserId();
+    let currentUser = null;
+    let activeReceiver = null;
+    let currentRequest = null;
+    let countdownTimer = null;
+    let statusPoller = null;
 
-    function showStep(n) {
-      document.querySelectorAll(".step-card").forEach(c => c.classList.remove("active"));
-      document.getElementById("step" + n).classList.add("active");
-      if (n === 2) hideAllPanels();
+    async function loadCurrentUser() {
+      const res = await fetch(`/api/user/${USER_ID}`);
+      currentUser = await res.json();
+      document.getElementById("receiverNameInput").value = currentUser.name || "";
+      document.getElementById("receiverUpiInput").value = currentUser.upiId || "";
     }
 
-    function hideAllPanels() {
-      document.getElementById("qrScanner").style.display = "none";
-      document.getElementById("manualInput").style.display = "none";
-      document.getElementById("btResults").style.display = "none";
-    }
-
-    function showScanOptions() {
-      const name = document.getElementById("receiverName").value.trim();
-      const upi = document.getElementById("receiverUpi").value.trim();
-      if (!name || !upi) {
-        alert("Please fill in your details first.");
-        return;
-      }
-      showStep(2);
-    }
-
-    async function startQRScan() {
-      hideAllPanels();
-      document.getElementById("qrScanner").style.display = "block";
-      try {
-        qrStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-        const video = document.getElementById("qrVideo");
-        video.srcObject = qrStream;
-        video.play();
-        showToast("Camera active — point at QR code", "info");
-        setTimeout(() => simulateQRScan(), 3000);
-      } catch (e) {
-        showToast("Camera not available — use manual entry", "error");
-        stopQRScan();
-        showManualInput();
-      }
-    }
-
-    function stopQRScan() {
-      if (qrStream) {
-        qrStream.getTracks().forEach(t => t.stop());
-        qrStream = null;
-      }
-      document.getElementById("qrScanner").style.display = "none";
-    }
-
-    async function simulateQRScan() {
-      stopQRScan();
-      showToast("QR Scanned! Verifying...", "info");
-      qrScanMode = true;
-      socket.emit("bt:scan");
-    }
-
-    function showManualInput() {
-      hideAllPanels();
-      document.getElementById("manualInput").style.display = "block";
-    }
-
-    async function verifyManualTxn() {
-      const txnId = document.getElementById("manualTxnId").value.trim().toUpperCase();
-      if (!txnId) return alert("Enter a transaction ID");
-      const res = await fetch(`/api/payment/${txnId}`);
-      if (!res.ok) return showToast("Transaction not found", "error");
-      const txn = await res.json();
-      showVerifiedScreen(txn, "Manual ID");
-    }
-
-    function startBTScan() {
-      hideAllPanels();
-      document.getElementById("btResults").style.display = "block";
-      document.getElementById("scanResults").innerHTML = `
-        <div class="scanning-anim">
-          <div class="scan-ring"></div>
-          <p>Scanning via Bluetooth...</p>
-        </div>`;
-      socket.emit("bt:scan");
-    }
-
-    socket.on("bt:scan:result", (payments) => {
-      const container = document.getElementById("scanResults");
-
-      if (qrScanMode) {
-        qrScanMode = false;
-        if (payments.length > 0) {
-          selectAndVerify(payments[0], "qr");
-        } else {
-          showToast("No payments found nearby", "error");
-        }
+    async function refreshWalletForActiveReceiver() {
+      if (!activeReceiver || !activeReceiver.userId) {
         return;
       }
 
-      if (document.getElementById("btResults").style.display === "none") {
-        if (payments.length > 0) {
-          selectAndVerify(payments[0], "bluetooth");
-        } else {
-          showToast("No payments found nearby", "error");
-        }
+      await fetch(`/api/wallet/${activeReceiver.userId}`);
+    }
+
+    function showStep(stepNumber) {
+      document.querySelectorAll(".step-card").forEach(card => card.classList.remove("active"));
+      document.getElementById(`step${stepNumber}`).classList.add("active");
+    }
+
+    function clearActiveRequest() {
+      if (countdownTimer) {
+        clearInterval(countdownTimer);
+        countdownTimer = null;
+      }
+      if (statusPoller) {
+        clearInterval(statusPoller);
+        statusPoller = null;
+      }
+      currentRequest = null;
+    }
+
+    async function createRequest() {
+      const receiverName = document.getElementById("receiverNameInput").value.trim();
+      const receiverUpi = document.getElementById("receiverUpiInput").value.trim();
+      const amount = Number(document.getElementById("requestAmount").value);
+
+      if (!receiverName || !receiverUpi) {
+        showToast("Enter receiver name and UPI ID.", "error");
         return;
       }
 
-      if (!payments.length) {
-        container.innerHTML = `
-          <div class="empty-scan">
-            <p>No nearby payments found.</p>
-            <p class="hint">Ask sender to generate QR first.</p>
-          </div>`;
+      if (!isValidUPI(receiverUpi)) {
+        showToast("Enter a valid receiver UPI ID.", "error");
         return;
       }
 
-      container.innerHTML = payments.map(p => `
-        <div class="payment-card" onclick="selectAndVerify(${JSON.stringify(p).replace(/"/g, '&quot;')}, 'bluetooth')">
-          <div class="payment-card-info">
-            <strong>${p.name}</strong>
-            <span>${p.upiId}</span>
-          </div>
-          <div class="payment-amount">₹${p.amount}</div>
-        </div>
-      `).join("");
-    });
-
-    async function selectAndVerify(payment, source = "bluetooth") {
-      if (source === "bluetooth") {
-        selectedTxn = { ...payment, txnId: payment.txnId };
-        showVerifiedScreen({
-          name: payment.name,
-          upiId: payment.upiId,
-          amount: payment.amount,
-          txnId: payment.txnId,
-          timeLeft: "Active"
-        }, "Bluetooth Verified");
+      if (!Number.isFinite(amount) || amount <= 0) {
+        showToast("Enter a valid amount to receive.", "error");
         return;
       }
 
-      const res = await fetch("/api/payment/verify-qr", {
+      const userRes = await fetch("/api/user/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ qrData: JSON.stringify(payment) })
+        body: JSON.stringify({ name: receiverName, upiId: receiverUpi })
+      });
+      const receiverUser = await userRes.json();
+      activeReceiver = {
+        userId: receiverUser._id,
+        name: receiverUser.name,
+        upiId: receiverUser.upiId
+      };
+
+      const res = await fetch("/api/payment/request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          receiverUserId: activeReceiver.userId,
+          receiverName: activeReceiver.name,
+          receiverUpi: activeReceiver.upiId,
+          amount
+        })
       });
       const result = await res.json();
-      if (!result.valid) {
-        showToast("❌ " + result.reason, "error");
+
+      if (result.error) {
+        showToast(result.error, "error");
         return;
       }
-      selectedTxn = { ...payment, txnId: result.txnId };
-      showVerifiedScreen(result, "QR Verified");
+
+      clearActiveRequest();
+      currentRequest = result;
+
+      document.getElementById("generatedQr").src = result.qrDataUrl;
+      document.getElementById("generatedQr").style.display = "block";
+      document.getElementById("shareReceiverName").textContent = activeReceiver.name;
+      document.getElementById("shareReceiverUpi").textContent = activeReceiver.upiId;
+      document.getElementById("shareAmount").textContent = formatINR(amount);
+      document.getElementById("shareTxnId").textContent = result.txnId;
+      document.getElementById("requestStatus").textContent = "Waiting for sender";
+      startCountdown(result.expiresAt);
+      startStatusPolling(result.txnId);
+
+      socket.emit("bt:advertise", {
+        txnId: result.txnId,
+        receiverUserId: activeReceiver.userId,
+        amount,
+        receiverName: activeReceiver.name,
+        receiverUpi: activeReceiver.upiId
+      });
+
+      await refreshWalletForActiveReceiver();
+      showStep(2);
+      showToast("Request created. Share the QR, transaction ID, or Bluetooth card with the sender.", "success");
     }
 
-    function showVerifiedScreen(data, method) {
-      document.getElementById("fromName").textContent = data.name || data.senderName || "—";
-      document.getElementById("fromUpi").textContent = data.upiId || data.senderUpi || "—";
-      document.getElementById("payAmount").textContent = "₹" + data.amount;
-      document.getElementById("displayVerifiedTxnId").textContent = data.txnId;
-      document.getElementById("timeLeft").textContent = data.timeLeft || "Active";
-      document.getElementById("verifyBadge").innerHTML = `<span>🔐 ${method} — Authentic Payment</span>`;
+    function startCountdown(expiresAt) {
+      const node = document.getElementById("qrCountdown");
+      const update = () => {
+        const msLeft = new Date(expiresAt).getTime() - Date.now();
+        if (msLeft <= 0) {
+          node.textContent = "Expired";
+          document.getElementById("requestStatus").textContent = "Expired";
+          clearInterval(countdownTimer);
+          countdownTimer = null;
+          return;
+        }
+
+        const totalSeconds = Math.floor(msLeft / 1000);
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+        node.textContent = `${minutes}:${String(seconds).padStart(2, "0")}`;
+      };
+
+      update();
+      countdownTimer = setInterval(update, 1000);
+    }
+
+    function startStatusPolling(txnId) {
+      statusPoller = setInterval(async () => {
+        const res = await fetch(`/api/payment/${txnId}`);
+        if (!res.ok) {
+          if (res.status === 410) {
+            document.getElementById("requestStatus").textContent = "Expired";
+            clearActiveRequest();
+          }
+          return;
+        }
+
+        const txn = await res.json();
+        const statusText = txn.status === "scanned"
+          ? `Scanned by sender${txn.senderName ? `: ${txn.senderName}` : ""}`
+          : txn.status === "processing"
+            ? "Sender is paying now"
+            : txn.status === "success"
+              ? "Paid successfully"
+              : "Waiting for sender";
+
+        document.getElementById("requestStatus").textContent = statusText;
+
+        if (txn.status === "success") {
+          clearActiveRequest();
+          await refreshWalletForActiveReceiver();
+          showResult(txn);
+        }
+      }, 2000);
+    }
+
+    function showResult(txn) {
+      document.getElementById("resultIcon").textContent = "OK";
+      document.getElementById("resultTitle").textContent = "Payment Received";
+      document.getElementById("resultMsg").textContent = `${formatINR(txn.amount)} received from ${txn.senderName}.`;
+      document.getElementById("resultDetails").innerHTML = `
+        <div class="info-row"><span>Receiver</span><strong>${txn.receiverName || "-"}</strong></div>
+        <div class="info-row"><span>Sender</span><strong>${txn.senderName || "-"}</strong></div>
+        <div class="info-row"><span>Sender UPI</span><strong>${txn.senderUpi || "-"}</strong></div>
+        <div class="info-row"><span>Amount</span><strong>${formatINR(txn.amount)}</strong></div>
+        <div class="info-row"><span>Transaction ID</span><strong>${txn.txnId}</strong></div>
+        <div class="info-row"><span>Paid via</span><strong>${txn.paymentMethod || "-"}</strong></div>
+      `;
       showStep(3);
     }
 
-    async function acceptPayment() {
-      const name = document.getElementById("receiverName").value.trim();
-      const upi = document.getElementById("receiverUpi").value.trim();
-      socket.emit("bt:connect", {
-        txnId: selectedTxn.txnId,
-        receiverName: name,
-        receiverUpi: upi
-      });
-      showStep(4);
-    }
-
-    socket.on("bt:pay:result", (data) => {
-      const success = data.status === "success";
-      document.getElementById("resultIcon").textContent = success ? "✅" : "❌";
-      document.getElementById("resultTitle").textContent = success ? "Payment Received!" : "Payment Failed";
-      document.getElementById("resultMsg").textContent = success
-        ? `₹${data.txn.amount} received from ${data.txn.senderName} via secure QR.`
-        : "Transaction failed. Please retry.";
-
-      if (data.txn) {
-        const d = document.getElementById("resultDetails");
-        d.style.display = "block";
-        d.innerHTML = `
-          <div class="info-row"><span>Txn ID</span><strong>${data.txn.txnId}</strong></div>
-          <div class="info-row"><span>From</span><strong>${data.txn.senderName}</strong></div>
-          <div class="info-row"><span>Security</span>
-            <strong style="color:var(--success)">QR + BT Verified ✓</strong>
-          </div>
-          <div class="info-row"><span>Time</span>
-            <strong>${new Date(data.txn.completedAt).toLocaleTimeString()}</strong>
-          </div>
-        `;
-      }
-      document.getElementById("doneBtn").style.display = "block";
+    socket.on("bt:advertise:ok", () => {
+      document.getElementById("requestStatus").textContent = "Visible over Bluetooth nearby";
     });
 
-    socket.on("bt:error", (e) => showToast("⚠️ " + e.message, "error"));
+    socket.on("bt:sender:connected", ({ senderName }) => {
+      document.getElementById("requestStatus").textContent = senderName
+        ? `${senderName} selected this request over Bluetooth`
+        : "A nearby sender selected this request";
+    });
+
+    socket.on("bt:pay:result", async ({ txn }) => {
+      if (!txn || !currentRequest || txn.txnId !== currentRequest.txnId) {
+        return;
+      }
+
+      if (txn.status === "success") {
+        clearActiveRequest();
+        await refreshWalletForActiveReceiver();
+        showResult(txn);
+      }
+    });
+
+    socket.on("bt:error", (data) => {
+      if (data && data.message) {
+        showToast(data.message, "error");
+      }
+    });
+
+    window.addEventListener("beforeunload", clearActiveRequest);
+    loadCurrentUser();
   </script>
 </body>
 </html>

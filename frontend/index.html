@@ -3,51 +3,90 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>UPI Bluetooth Pay</title>
+  <title>PayNearBy Dashboard</title>
   <link rel="stylesheet" href="assets/style.css" />
-  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet"/>
 </head>
 <body class="home-page">
   <div class="noise-overlay"></div>
 
   <div class="home-container">
-    <div class="logo-block">
-      <div class="logo-icon">
-        <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
-          <circle cx="24" cy="24" r="24" fill="var(--accent)"/>
-          <path d="M16 24 C16 19.6 19.6 16 24 16 C28.4 16 32 19.6 32 24" stroke="white" stroke-width="2.5" stroke-linecap="round" fill="none"/>
-          <path d="M12 24 C12 17.4 17.4 12 24 12 C30.6 12 36 17.4 36 24" stroke="white" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.5"/>
-          <circle cx="24" cy="24" r="3.5" fill="white"/>
-          <path d="M21 30 L24 24 L29 33" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-        </svg>
+    <div class="top-bar">
+      <div class="logo-block">
+        <div class="logo-icon">
+          <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+            <circle cx="24" cy="24" r="24" fill="var(--accent)"/>
+            <path d="M16 24 C16 19.6 19.6 16 24 16 C28.4 16 32 19.6 32 24" stroke="white" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+            <path d="M12 24 C12 17.4 17.4 12 24 12 C30.6 12 36 17.4 36 24" stroke="white" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.5"/>
+            <circle cx="24" cy="24" r="3.5" fill="white"/>
+            <path d="M21 30 L24 24 L29 33" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          </svg>
+        </div>
+        <div>
+          <h1 class="logo-title">PayNearBy</h1>
+          <p class="logo-sub">Offline UPI</p>
+        </div>
       </div>
-      <div>
-        <h1 class="logo-title">PayNearby</h1>
-        <p class="logo-sub">Offline UPI via Bluetooth</p>
-      </div>
+      <button class="ghost-btn" type="button" data-logout>Logout</button>
     </div>
 
     <div class="hero-text">
-      <h2>Pay anyone,<br/><span class="accent-text">no internet needed.</span></h2>
-      <p>Uses Bluetooth to securely transfer UPI payment requests between devices — even when offline.</p>
+      <h2>Move money smarter,<br/><span class="accent-text">with one-time QR security.</span></h2>
+      <p>Create nearby payment requests, let senders pay by QR or transaction ID, and review your insights only when you want to.</p>
     </div>
 
+    <section class="insights-grid">
+      <div class="insight-card stat-card">
+        <span class="insight-label">Total volume</span>
+        <strong id="totalVolume">Rs 0</strong>
+        <p id="successRateCopy">0% successful so far</p>
+      </div>
+      <div class="insight-card stat-card">
+        <span class="insight-label">Average ticket</span>
+        <strong id="avgTicket">Rs 0</strong>
+        <p id="riskLevelCopy">Risk level: Normal</p>
+      </div>
+      <div class="insight-card highlight-card">
+        <span class="insight-label">AI insights</span>
+        <div id="highlightList" class="highlight-list"></div>
+      </div>
+    </section>
+
     <div class="action-cards">
-      <a href="send.html" class="action-card send-card">
-        <div class="card-icon">↑</div>
+      <a href="send.html" class="action-card send-card" target="_blank" rel="noopener noreferrer">
+        <div class="card-icon">S</div>
         <div>
           <h3>Send Money</h3>
-          <p>Request payment via BT</p>
+          <p>Pay by QR, transaction ID, or Bluetooth</p>
         </div>
-        <div class="card-arrow">→</div>
+        <div class="card-arrow">OPEN</div>
       </a>
-      <a href="receive.html" class="action-card receive-card">
-        <div class="card-icon">↓</div>
+      <a href="receive.html" class="action-card receive-card" target="_blank" rel="noopener noreferrer">
+        <div class="card-icon">R</div>
         <div>
           <h3>Receive Money</h3>
-          <p>Scan & pay nearby request</p>
+          <p>Create a payment request for the sender</p>
         </div>
-        <div class="card-arrow">→</div>
+        <div class="card-arrow">OPEN</div>
+      </a>
+    </div>
+
+    <div class="action-cards" style="margin-top:1rem;">
+      <a href="insights.html" class="action-card send-card" target="_blank" rel="noopener noreferrer">
+        <div class="card-icon">AI</div>
+        <div>
+          <h3>View AI Insights</h3>
+          <p>See volume trends, status mix, and smart highlights</p>
+        </div>
+        <div class="card-arrow">OPEN</div>
+      </a>
+      <a href="history.html" class="action-card receive-card" target="_blank" rel="noopener noreferrer">
+        <div class="card-icon">H</div>
+        <div>
+          <h3>View Transaction History</h3>
+          <p>Open the transaction list for the logged-in user</p>
+        </div>
+        <div class="card-arrow">OPEN</div>
       </a>
     </div>
 
@@ -55,53 +94,21 @@
       <div class="status-dot" id="statusDot"></div>
       <span id="statusText">Checking server...</span>
     </div>
-
-    <a href="#history" class="history-link" onclick="loadHistory()">View Transaction History ↓</a>
-
-    <div id="history" class="history-section" style="display:none">
-      <h3>Recent Transactions</h3>
-      <div id="historyList"></div>
-    </div>
   </div>
 
   <script src="assets/app.js"></script>
   <script>
-    // Check server health
+    requireLogin();
+
     fetch("/api/status/health")
       .then(r => r.json())
       .then(d => {
         document.getElementById("statusDot").classList.add("online");
-        document.getElementById("statusText").textContent = "Server online · " + d.bluetooth;
+        document.getElementById("statusText").textContent = "Server online | " + d.bluetooth;
       })
       .catch(() => {
-        document.getElementById("statusText").textContent = "Server offline — start with: npm run dev";
+        document.getElementById("statusText").textContent = "Server offline - start with: npm run dev";
       });
-
-    function loadHistory() {
-      const sec = document.getElementById("history");
-      sec.style.display = sec.style.display === "none" ? "block" : "none";
-      fetch("/api/payment/history")
-        .then(r => r.json())
-        .then(txns => {
-          const list = document.getElementById("historyList");
-          if (!txns.length) {
-            list.innerHTML = "<p class='empty-state'>No transactions yet.</p>";
-            return;
-          }
-          list.innerHTML = txns.map(t => `
-            <div class="txn-row ${t.status}">
-              <div>
-                <strong>₹${t.amount}</strong>
-                <span>${t.senderName} → ${t.receiverName || "?"}</span>
-              </div>
-              <div class="txn-meta">
-                <span class="badge ${t.status}">${t.status}</span>
-                <span>${new Date(t.timestamp).toLocaleTimeString()}</span>
-              </div>
-            </div>
-          `).join("");
-        });
-    }
   </script>
 </body>
 </html>

@@ -1,15 +1,13 @@
-// Shared utilities for PayNearby
+// Shared utilities for PayNearBy
 
-// Format currency
 function formatINR(amount) {
   return new Intl.NumberFormat("en-IN", {
     style: "currency",
     currency: "INR",
     minimumFractionDigits: 0
-  }).format(amount);
+  }).format(Number(amount) || 0);
 }
 
-// Show toast notification
 function showToast(message, type = "info") {
   const toast = document.createElement("div");
   toast.className = `toast toast-${type}`;
@@ -27,43 +25,37 @@ function showToast(message, type = "info") {
   setTimeout(() => toast.remove(), 3000);
 }
 
-// Validate UPI ID
 function isValidUPI(upiId) {
   return /^[\w.\-]+@[\w]+$/.test(upiId);
 }
 
-// ✅ NEW: WALLET PAYMENT FUNCTION
-async function sendPayment(amount) {
-  try {
-    const res = await fetch("/api/wallet/pay", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        userId: "user123", // later you can make dynamic
-        amount: amount
-      })
-    });
-
-    const data = await res.json();
-
-    if (data.error) {
-      showToast("❌ " + data.error, "error");
-    } else {
-      showToast(
-        `✅ Payment Successful\nRemaining: ₹${data.remainingBalance}`,
-        "success"
-      );
-    }
-
-  } catch (err) {
-    console.error(err);
-    showToast("⚠️ Payment failed", "error");
+function getCurrentUserId() {
+  const stored = localStorage.getItem("userId");
+  if (!stored || stored === "null" || stored === "undefined") {
+    localStorage.removeItem("userId");
+    return null;
   }
+  return stored;
 }
 
-// Add input validation styling
+function requireLogin(redirectTo = "login.html") {
+  if (!getCurrentUserId()) {
+    window.location.href = redirectTo;
+    return false;
+  }
+
+  return true;
+}
+
+function logout() {
+  localStorage.removeItem("userId");
+  window.location.href = "login.html";
+}
+
+function supportsQrDetector() {
+  return "BarcodeDetector" in window;
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll("input").forEach(input => {
     input.addEventListener("blur", () => {
@@ -71,5 +63,9 @@ document.addEventListener("DOMContentLoaded", () => {
         input.style.borderColor = "var(--success)";
       }
     });
+  });
+
+  document.querySelectorAll("[data-logout]").forEach(button => {
+    button.addEventListener("click", logout);
   });
 });

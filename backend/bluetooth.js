@@ -1,101 +1,107 @@
-// Bluetooth simulation layer using Socket.IO
-// In production: replace socket events with actual BLE (noble/bleno) calls
-
-const { createTransaction, getTransaction, updateStatus } = require("./transaction");
+const { getTimeLeftLabel, getTransaction } = require("./transaction");
 
 function initBluetooth(io) {
-  const rooms = {}; // roomId -> { sender, receiver }
+  const rooms = {};
 
   io.on("connection", (socket) => {
     console.log(`[BT] Device connected: ${socket.id}`);
 
-    // SENDER creates a payment room (like BT advertising)
     socket.on("bt:advertise", (data) => {
-      const { txnId, upiId, amount, name } = data;
-      rooms[txnId] = { sender: socket.id, senderData: data };
+      const { txnId, amount, receiverName } = data;
+      rooms[txnId] = {
+        owner: socket.id,
+        requestData: data
+      };
+
       socket.join(txnId);
       socket.emit("bt:advertise:ok", { txnId });
-      console.log(`[BT] Advertising txn: ${txnId} | ₹${amount} by ${name}`);
+      console.log(`[BT] Advertising request: ${txnId} | Rs ${amount} for ${receiverName}`);
     });
 
-    // RECEIVER scans and finds available payments (like BT scan)
-    socket.on("bt:scan", () => {
-      const available = Object.entries(rooms)
-        .filter(([, v]) => !v.receiver)
-        .map(([txnId, v]) => ({ txnId, ...v.senderData }));
+    socket.on("bt:scan", async () => {
+      const requests = await Promise.all(
+        Object.entries(rooms)
+          .filter(([, room]) => !room.sender)
+          .map(async ([txnId]) => {
+            const txn = await getTransaction(txnId);
+            if (!txn || txn.isExpired || txn.status === "success") {
+              delete rooms[txnId];
+              return null;
+            }
+
+            return {
+              txnId,
+              amount: txn.amount,
+              name: txn.receiverName,
+              upiId: txn.receiverUpi,
+              timeLeft: getTimeLeftLabel(txn.expiresAt)
+            };
+          })
+      );
+
+      const available = requests.filter(Boolean);
       socket.emit("bt:scan:result", available);
-      console.log(`[BT] Scan requested, found ${available.length} payments`);
+      console.log(`[BT] Scan requested, found ${available.length} requests`);
     });
 
-    // RECEIVER connects to a payment (like BT pairing)
-    socket.on("bt:connect", (data) => {
-      const { txnId, receiverUpi, receiverName } = data;
-      if (!rooms[txnId]) {
-        socket.emit("bt:error", { message: "Payment not found. Re-scan." });
+    socket.on("bt:select", async ({ txnId, senderName, senderUpi }) => {
+      const room = rooms[txnId];
+      const txn = await getTransaction(txnId);
+
+      if (!room || !txn) {
+        socket.emit("bt:error", { message: "Payment request not found. Scan again." });
         return;
       }
-      rooms[txnId].receiver = socket.id;
-      rooms[txnId].receiverData = { receiverUpi, receiverName };
+
+      if (txn.isExpired || txn.status === "success") {
+        socket.emit("bt:error", { message: "This payment request is no longer available." });
+        delete rooms[txnId];
+        return;
+      }
+
+      rooms[txnId].sender = socket.id;
       socket.join(txnId);
 
-      // Notify sender that receiver connected
-      io.to(rooms[txnId].sender).emit("bt:receiver:connected", {
-        receiverUpi,
-        receiverName,
-        txnId
-      });
-
-      socket.emit("bt:connect:ok", {
+      socket.emit("bt:selected", {
         txnId,
-        ...rooms[txnId].senderData
+        receiverName: txn.receiverName,
+        receiverUpi: txn.receiverUpi,
+        amount: txn.amount,
+        timeLeft: getTimeLeftLabel(txn.expiresAt)
       });
 
-      console.log(`[BT] Receiver ${receiverName} connected to txn ${txnId}`);
+      io.to(room.owner).emit("bt:sender:connected", {
+        txnId,
+        senderName,
+        senderUpi
+      });
     });
 
-    // SENDER confirms and initiates payment
-// SENDER confirms and initiates payment
-socket.on("bt:pay:initiate", (data) => {
-  const { txnId } = data;
+    socket.on("bt:payment:update", async ({ txnId }) => {
+      const room = rooms[txnId];
+      const txn = await getTransaction(txnId);
 
-  const room = rooms[txnId];
-  if (!room) return;
+      if (!room || !txn) return;
 
-  const txn = createTransaction({
-    txnId,
-    ...room.senderData,
-    ...room.receiverData
-  });
+      io.to(txnId).emit("bt:pay:result", {
+        txnId,
+        status: txn.status,
+        txn
+      });
 
-  // Notify both devices
-  io.to(txnId).emit("bt:pay:processing", { txnId, txn });
-  console.log(`[BT] Payment processing: ${txnId}`);
-
-  // Simulate success
-  setTimeout(() => {
-    const success = true;
-
-    updateStatus(txnId, success ? "success" : "failed");
-
-    io.to(txnId).emit("bt:pay:result", {
-      txnId,
-      status: success ? "success" : "failed",
-      txn: getTransaction(txnId)
+      if (txn.status === "success" || txn.isExpired) {
+        delete rooms[txnId];
+      }
     });
 
-    delete rooms[txnId];
-    console.log(`[BT] Payment SUCCESS: ${txnId}`);
-  }, 2000);
-});
-
-    // Disconnect cleanup
     socket.on("disconnect", () => {
       Object.entries(rooms).forEach(([txnId, room]) => {
-        if (room.sender === socket.id || room.receiver === socket.id) {
+        if (room.owner === socket.id || room.sender === socket.id) {
           io.to(txnId).emit("bt:error", { message: "Other device disconnected." });
           delete rooms[txnId];
         }
       });
+
       console.log(`[BT] Device disconnected: ${socket.id}`);
     });
   });

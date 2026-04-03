@@ -1,25 +1,111 @@
-<h2>Login</h2>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Login | PayNearBy</title>
+  <link rel="stylesheet" href="assets/style.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet"/>
+</head>
+<body class="login-page">
+  <div class="noise-overlay"></div>
 
-<input id="name" placeholder="Your Name"/>
-<input id="upi" placeholder="UPI ID"/>
+  <main class="login-shell">
+    <section class="login-hero">
+      <span class="eyebrow">PayNearBy Wallet</span>
+      <h1>Offline payments with a cleaner flow.</h1>
+      <p>Sign in with your UPI identity to open the dashboard, create 5 minute QR requests, pay by transaction ID, and review live transaction insights.</p>
 
-<button onclick="login()">Login</button>
+      <div class="hero-points">
+        <div class="hero-point">
+          <strong>One-time QR requests</strong>
+          <span>Each QR expires in 5 minutes and becomes invalid after one scan.</span>
+        </div>
+        <div class="hero-point">
+          <strong>Bluetooth handoff</strong>
+          <span>Nearby requests stay discoverable while the sender screen is open.</span>
+        </div>
+        <div class="hero-point">
+          <strong>Saved transaction history</strong>
+          <span>Transactions and AI insights stay available through MongoDB.</span>
+        </div>
+      </div>
+    </section>
 
-<script>
-async function login(){
-  const name = document.getElementById("name").value;
-  const upiId = document.getElementById("upi").value;
+    <section class="login-card">
+      <div class="logo-block compact">
+        <div class="logo-icon">
+          <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+            <circle cx="24" cy="24" r="24" fill="var(--accent)"/>
+            <path d="M16 24 C16 19.6 19.6 16 24 16 C28.4 16 32 19.6 32 24" stroke="white" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+            <path d="M12 24 C12 17.4 17.4 12 24 12 C30.6 12 36 17.4 36 24" stroke="white" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.5"/>
+            <circle cx="24" cy="24" r="3.5" fill="white"/>
+            <path d="M21 30 L24 24 L29 33" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          </svg>
+        </div>
+        <div>
+          <h2 class="logo-title">PayNearBy</h2>
+          <p class="logo-sub">Login to continue</p>
+        </div>
+      </div>
 
-  const res = await fetch("/api/user/create",{
-    method:"POST",
-    headers:{ "Content-Type":"application/json"},
-    body: JSON.stringify({ name, upiId })
-  });
+      <form class="login-form" onsubmit="login(event)">
+        <div class="form-group">
+          <label for="name">Your Name</label>
+          <input id="name" placeholder="e.g. Rahul Sharma" autocomplete="name"/>
+        </div>
 
-  const user = await res.json();
+        <div class="form-group">
+          <label for="upi">UPI ID</label>
+          <input id="upi" placeholder="e.g. rahul@upi" autocomplete="off"/>
+        </div>
 
-  localStorage.setItem("userId", user._id);
+        <button class="btn-primary" type="submit">
+          <span>Open Dashboard</span>
+        </button>
+      </form>
 
-  window.location.href = "send.html";
-}
-</script>
+      <p class="login-note">Returning users with the same name and UPI ID will reuse their existing profile.</p>
+    </section>
+  </main>
+
+  <script src="assets/app.js"></script>
+  <script>
+    if (getCurrentUserId()) {
+      window.location.href = "index.html";
+    }
+
+    async function login(event) {
+      event.preventDefault();
+
+      const name = document.getElementById("name").value.trim();
+      const upiId = document.getElementById("upi").value.trim();
+
+      if (!name || !upiId) {
+        showToast("Please enter both name and UPI ID.", "error");
+        return;
+      }
+
+      if (!isValidUPI(upiId)) {
+        showToast("Please enter a valid UPI ID.", "error");
+        return;
+      }
+
+      const res = await fetch("/api/user/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, upiId })
+      });
+
+      const user = await res.json();
+      localStorage.setItem("userId", user._id);
+      showToast("Welcome back. Opening dashboard.", "success");
+
+      setTimeout(() => {
+        window.location.href = "index.html";
+      }, 500);
+    }
+  </script>
+</body>
+</html>
+

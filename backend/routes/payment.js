@@ -1,54 +1,79 @@
 const express = require("express");
-const router = express.Router();
-const { v4: uuidv4 } = require("uuid");
-const QRCode = require("qrcode");
 const crypto = require("crypto");
-const { getAllTransactions, getTransaction } = require("../transaction");
+const QRCode = require("qrcode");
+const { v4: uuidv4 } = require("uuid");
+const User = require("../models/userModel");
+const {
+  createPaymentRequest,
+  expireTransaction,
+  getTimeLeftLabel,
+  getTransaction,
+  getTransactionInsights,
+  getUserTransactions,
+  markProcessing,
+  markQrScanned,
+  updateTransaction
+} = require("../transaction");
 
-// Secret key for hashing — keeps QR tamper-proof
+const router = express.Router();
 const SECRET_KEY = "paynearby-fin-o-hack-2026";
 
-// Generate secure hash for QR verification
-function generateHash(txnId, upiId, amount, expiry) {
+function generateHash(txnId, receiverUpi, amount, expiresAt) {
   return crypto
     .createHmac("sha256", SECRET_KEY)
-    .update(`${txnId}|${upiId}|${amount}|${expiry}`)
+    .update(`${txnId}|${receiverUpi}|${amount}|${expiresAt}`)
     .digest("hex")
-    .substring(0, 16); // short hash
+    .substring(0, 16);
 }
 
-// POST /api/payment/create
-router.post("/create", async (req, res) => {
-  const { upiId, amount, name } = req.body;
+router.post("/request", async (req, res) => {
+  const { receiverUserId, receiverName, receiverUpi, amount } = req.body;
 
-  if (!upiId || !amount || !name) {
-    return res.status(400).json({ error: "upiId, amount, name are required" });
+  if (!receiverName || !receiverUpi || !amount) {
+    return res.status(400).json({ error: "receiverName, receiverUpi, amount are required" });
   }
 
-  // Unique transaction ID
-  const txnId = "TXN-" + uuidv4().substring(0, 6).toUpperCase();
+  let receiver = null;
 
-  // Expiry = 5 minutes from now
+  if (receiverUserId) {
+    receiver = await User.findById(receiverUserId);
+  }
+
+  if (!receiver) {
+    receiver = await User.findOne({ name: receiverName, upiId: receiverUpi });
+  }
+
+  if (!receiver) {
+    receiver = await User.create({ name: receiverName, upiId: receiverUpi });
+  }
+
+  const txnId = `TXN-${uuidv4().substring(0, 6).toUpperCase()}`;
   const createdAt = Date.now();
   const expiresAt = createdAt + 5 * 60 * 1000;
-
-  // Tamper-proof hash
-  const hash = generateHash(txnId, upiId, amount, expiresAt);
-
-  // QR data — all info packed into one string
+  const hash = generateHash(txnId, receiver.upiId, amount, expiresAt);
   const qrData = JSON.stringify({
     txnId,
-    upiId,
-    name,
-    amount: parseFloat(amount),
+    receiverUserId: String(receiver._id),
+    receiverUpi: receiver.upiId,
+    receiverName: receiver.name,
+    amount: Number(amount),
     createdAt,
     expiresAt,
     hash,
-    app: "PayNearby"
+    app: "PayNearBy"
   });
 
   try {
-    // Generate QR with custom styling
+    await createPaymentRequest({
+      txnId,
+      receiverUserId: receiver._id,
+      receiverName: receiver.name,
+      receiverUpi: receiver.upiId,
+      amount,
+      expiresAt,
+      qrHash: hash
+    });
+
     const qrDataUrl = await QRCode.toDataURL(qrData, {
       errorCorrectionLevel: "H",
       margin: 2,
@@ -61,101 +86,205 @@ router.post("/create", async (req, res) => {
 
     res.json({
       txnId,
-      qrDataUrl,
+      receiverUserId: String(receiver._id),
+      receiverName: receiver.name,
+      receiverUpi: receiver.upiId,
       qrData,
+      qrDataUrl,
       expiresAt,
       expiresIn: "5 minutes",
       hash
     });
-
   } catch (err) {
     res.status(500).json({ error: "QR generation failed" });
   }
 });
 
-// POST /api/payment/verify-qr — verify scanned QR is valid
-router.post("/verify-qr", (req, res) => {
+router.post("/verify-qr", async (req, res) => {
   const { qrData } = req.body;
 
   try {
     const parsed = JSON.parse(qrData);
-    const { txnId, upiId, amount, expiresAt, hash } = parsed;
+    const { txnId, receiverUpi, amount, expiresAt, hash } = parsed;
+    const txn = await getTransaction(txnId);
 
-    // Check 1: Is QR expired?
-    if (Date.now() > expiresAt) {
-      return res.json({
-        valid: false,
-        reason: "QR code has expired. Ask sender to generate a new one.",
-        riskLevel: "expired"
-      });
+    if (!txn) {
+      return res.json({ valid: false, reason: "Transaction not found.", riskLevel: "danger" });
     }
 
-    // Check 2: Is hash valid? (tamper check)
-    const expectedHash = generateHash(txnId, upiId, amount, expiresAt);
-    if (hash !== expectedHash) {
-      return res.json({
-        valid: false,
-        reason: "QR code has been tampered with. Do not proceed!",
-        riskLevel: "danger"
-      });
+    if (txn.isExpired || Date.now() > expiresAt) {
+      await expireTransaction(txnId);
+      return res.json({ valid: false, reason: "QR code has expired. Ask receiver to generate a new one.", riskLevel: "expired" });
     }
 
-    // Check 3: Time remaining
-    const timeLeft = Math.floor((expiresAt - Date.now()) / 1000);
-    const minutesLeft = Math.floor(timeLeft / 60);
-    const secondsLeft = timeLeft % 60;
+    if (txn.qrConsumedAt) {
+      return res.json({ valid: false, reason: "QR code has already been scanned and cannot be reused.", riskLevel: "warning" });
+    }
+
+    const expectedHash = generateHash(txnId, receiverUpi, amount, expiresAt);
+    const hashMatches =
+      hash === expectedHash &&
+      txn.qrHash === hash &&
+      txn.receiverUpi === receiverUpi &&
+      Number(txn.amount) === Number(amount);
+
+    if (!hashMatches) {
+      return res.json({ valid: false, reason: "QR code has been tampered with. Do not proceed!", riskLevel: "danger" });
+    }
+
+    await markQrScanned(txnId);
 
     res.json({
       valid: true,
       txnId,
-      upiId,
-      name: parsed.name,
+      receiverUserId: txn.receiverUserId,
+      receiverUpi,
+      receiverName: txn.receiverName,
       amount,
-      timeLeft: `${minutesLeft}m ${secondsLeft}s`,
+      timeLeft: getTimeLeftLabel(expiresAt),
       riskLevel: "safe"
     });
-
   } catch (err) {
-    res.json({
-      valid: false,
-      reason: "Invalid QR code format.",
-      riskLevel: "danger"
-    });
+    res.json({ valid: false, reason: "Invalid QR code format.", riskLevel: "danger" });
   }
 });
 
-// GET /api/payment/history
-router.get("/history", (req, res) => {
-  res.json(getAllTransactions());
+router.post("/complete", async (req, res) => {
+  const { txnId, senderUserId, paymentMethod } = req.body;
+  const txn = await getTransaction(txnId);
+
+  if (!txn) {
+    return res.status(404).json({ error: "Transaction not found" });
+  }
+
+  if (txn.isExpired) {
+    return res.status(410).json({ error: "Transaction has expired" });
+  }
+
+  if (txn.status === "success") {
+    return res.status(409).json({ error: "Transaction already completed" });
+  }
+
+  const sender = await User.findById(senderUserId);
+  const receiver = await User.findById(txn.receiverUserId);
+
+  if (!sender || !receiver) {
+    return res.status(404).json({ error: "Sender or receiver not found" });
+  }
+
+  if (String(sender._id) === String(receiver._id)) {
+    return res.status(400).json({ error: "Sender and receiver must be different users" });
+  }
+
+  if (sender.walletBalance < txn.amount) {
+    return res.status(400).json({ error: "Insufficient balance" });
+  }
+
+  await markProcessing(txnId);
+
+  sender.walletBalance -= txn.amount;
+  receiver.walletBalance += txn.amount;
+  await sender.save();
+  await receiver.save();
+
+  const updatedTxn = await updateTransaction(txnId, {
+    senderUserId,
+    senderName: sender.name,
+    senderUpi: sender.upiId,
+    status: "success",
+    completedAt: new Date(),
+    paymentMethod
+  });
+
+  res.json({
+    status: "success",
+    txn: updatedTxn,
+    senderBalance: sender.walletBalance,
+    receiverBalance: receiver.walletBalance
+  });
 });
 
-// GET /api/payment/:txnId
-router.get("/:txnId", (req, res) => {
-  const txn = getTransaction(req.params.txnId);
-  if (!txn) return res.status(404).json({ error: "Transaction not found" });
-  res.json(txn);
+router.get("/history", async (req, res) => {
+  const { userId } = req.query;
+  if (!userId) {
+    return res.status(400).json({ error: "userId is required" });
+  }
+
+  res.json(await getUserTransactions(userId));
 });
-// POST /api/ai/fraud-check
+
+router.get("/insights/summary", async (req, res) => {
+  const { userId } = req.query;
+  if (!userId) {
+    return res.status(400).json({ error: "userId is required" });
+  }
+
+  res.json(await getTransactionInsights(userId));
+});
+
+router.get("/:txnId", async (req, res) => {
+  const txn = await getTransaction(req.params.txnId);
+
+  if (!txn) {
+    return res.status(404).json({ error: "Transaction not found" });
+  }
+
+  if (txn.isExpired) {
+    return res.status(410).json({ error: "Transaction has expired" });
+  }
+
+  res.json({
+    txnId: txn.txnId,
+    senderUserId: txn.senderUserId,
+    senderName: txn.senderName,
+    senderUpi: txn.senderUpi,
+    receiverUserId: txn.receiverUserId,
+    receiverName: txn.receiverName,
+    receiverUpi: txn.receiverUpi,
+    amount: txn.amount,
+    status: txn.status,
+    paymentMethod: txn.paymentMethod,
+    expiresAt: txn.expiresAt,
+    qrConsumedAt: txn.qrConsumedAt,
+    timeLeft: getTimeLeftLabel(txn.expiresAt)
+  });
+});
+
 router.post("/fraud-check", async (req, res) => {
-  const { amount, receiverUpi, receiverName, senderUpi, txnId } = req.body;
+  const { amount, receiverUpi, receiverName } = req.body;
   const hour = new Date().getHours();
 
-  // Simple rule-based scoring (no API key needed)
   let score = 0;
-  let reasons = [];
+  const reasons = [];
 
-  if (parseFloat(amount) > 10000) { score += 30; reasons.push("Large amount"); }
-  if (parseFloat(amount) > 50000) { score += 40; reasons.push("Very large amount"); }
-  if (hour < 6 || hour > 23) { score += 20; reasons.push("Unusual time of day"); }
-  if (receiverUpi && receiverUpi.includes("test")) { score += 25; reasons.push("Suspicious UPI ID"); }
-  if (receiverName && receiverName.length < 3) { score += 15; reasons.push("Very short name"); }
+  if (parseFloat(amount) > 10000) {
+    score += 30;
+    reasons.push("Large amount");
+  }
+  if (parseFloat(amount) > 50000) {
+    score += 40;
+    reasons.push("Very large amount");
+  }
+  if (hour < 6 || hour > 23) {
+    score += 20;
+    reasons.push("Unusual time of day");
+  }
+  if (receiverUpi && receiverUpi.includes("test")) {
+    score += 25;
+    reasons.push("Suspicious UPI ID");
+  }
+  if (receiverName && receiverName.length < 3) {
+    score += 15;
+    reasons.push("Very short name");
+  }
 
-  let riskLevel = score <= 30 ? "safe" : score <= 60 ? "warning" : "danger";
-  let reason = score <= 30
-    ? "This payment looks normal. Safe to proceed."
-    : score <= 60
-    ? `Caution: ${reasons.join(", ")}. Verify the receiver.`
-    : `High risk detected: ${reasons.join(", ")}. Do NOT proceed!`;
+  const riskLevel = score <= 30 ? "safe" : score <= 60 ? "warning" : "danger";
+  const reason =
+    score <= 30
+      ? "This payment looks normal. Safe to proceed."
+      : score <= 60
+        ? `Caution: ${reasons.join(", ")}. Verify the receiver.`
+        : `High risk detected: ${reasons.join(", ")}. Do NOT proceed!`;
 
   res.json({ score, riskLevel, reason });
 });
