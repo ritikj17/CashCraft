@@ -37,15 +37,15 @@ app.use("/api/status", statusRoutes);
 app.use("/api/wallet", walletRoutes);
 app.use("/api/user", userRoutes);
 
-// ✅ DEFAULT ROUTE (LOGIN PAGE)
+// ✅ DEFAULT ROUTE
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "../frontend/login.html"));
 });
 
-// ✅ BLUETOOTH INIT
+// ✅ BLUETOOTH
 initBluetooth(io);
 
-// ✅ PORT (IMPORTANT FOR RENDER)
+// ✅ PORT
 const PORT = process.env.PORT || 3000;
 
 server.listen(PORT, () => {
