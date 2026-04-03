@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const User = require("./models/usermodel");
+const User = require("./models/userModel");
 
 // GET BALANCE
 router.get("/:userId", async (req, res) => {
