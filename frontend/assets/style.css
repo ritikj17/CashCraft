@@ -186,6 +186,21 @@ body.dashboard-loading .dashboard-container {
   position: relative; z-index: 1;
 }
 
+.send-page .page-container,
+.receive-page .page-container {
+  max-width: 980px;
+}
+
+.send-page .step-card,
+.receive-page .step-card {
+  max-width: 760px;
+}
+
+.analytics-container,
+.history-container {
+  max-width: 1180px;
+}
+
 .page-header {
   display: flex; align-items: center; gap: 1rem;
   margin-bottom: 2rem;
@@ -939,5 +954,19 @@ body.dashboard-loading .dashboard-container {
 
   .login-card {
     padding: 1.4rem;
+  }
+}
+
+@media (max-width: 900px) {
+  .send-page .page-container,
+  .receive-page .page-container,
+  .analytics-container,
+  .history-container {
+    max-width: 720px;
+  }
+
+  .send-page .step-card,
+  .receive-page .step-card {
+    max-width: 100%;
   }
 }
